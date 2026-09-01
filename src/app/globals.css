@@ -43,9 +43,24 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Reserve space so the fixed player bar never covers page content. */
+  padding-bottom: 84px;
 }
 
 a {
   color: inherit;
   text-decoration: none;
+}
+
+.site-header {
+  display: flex;
+  align-items: center;
+  padding: 1rem clamp(1rem, 5vw, 3rem);
+  border-bottom: 1px solid var(--background-accent);
+}
+
+.site-brand {
+  font-weight: 700;
+  font-size: 1.05rem;
+  letter-spacing: 0.02em;
 }

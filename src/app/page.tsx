@@ -1,36 +1,26 @@
 import styles from "./page.module.css";
+import { getAllStations, getGenres } from "@/lib/stations";
+import { StationList } from "@/components/stations/StationList";
 
-const GENRES = [
-  "Reggae",
-  "Soca",
-  "Dancehall",
-  "Zouk",
-  "Kompa",
-  "Chutney",
-  "Island Talk & News",
-];
-
+// Home = the browse view. Server Component: fetch the catalog on the server and
+// hand it to the client StationList, which owns filtering + play interactions.
 export default function Home() {
+  const stations = getAllStations();
+  const genres = getGenres();
+
   return (
     <main className={styles.main}>
       <section className={styles.hero}>
         <p className={styles.kicker}>Caribbean Radio Hub</p>
         <h1 className={styles.title}>Island Waves</h1>
         <p className={styles.tagline}>
-          One place to discover and play Caribbean internet radio. Find a
-          station, press play, and keep the island vibes going while you browse.
+          Find a station, press play, and keep the island vibes going while you
+          browse. {stations.length} stations across the Caribbean.
         </p>
-        <ul className={styles.genres}>
-          {GENRES.map((genre) => (
-            <li key={genre} className={styles.genre}>
-              {genre}
-            </li>
-          ))}
-        </ul>
-        <p className={styles.note}>
-          🎧 Skeleton app — station catalog, browse, and playback are on the
-          way.
-        </p>
+      </section>
+
+      <section className={styles.catalog}>
+        <StationList stations={stations} genres={genres} />
       </section>
     </main>
   );
