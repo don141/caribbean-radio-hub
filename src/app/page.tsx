@@ -1,5 +1,5 @@
 import styles from "./page.module.css";
-import { getAllStations, getGenres } from "@/lib/stations";
+import { getAllStations, getGenres, getCountries } from "@/lib/stations";
 import { StationList } from "@/components/stations/StationList";
 
 // Home = the browse view. Server Component: fetch the catalog on the server and
@@ -7,6 +7,7 @@ import { StationList } from "@/components/stations/StationList";
 export default function Home() {
   const stations = getAllStations();
   const genres = getGenres();
+  const countries = getCountries();
 
   return (
     <main className={styles.main}>
@@ -20,7 +21,11 @@ export default function Home() {
       </section>
 
       <section className={styles.catalog}>
-        <StationList stations={stations} genres={genres} />
+        <StationList
+          stations={stations}
+          genres={genres}
+          countries={countries}
+        />
       </section>
     </main>
   );
