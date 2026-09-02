@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import "./globals.css";
 import { PlayerProvider } from "@/lib/player/PlayerProvider";
 import { PlayerBar } from "@/components/player/PlayerBar";
+import { AuthProvider } from "@/lib/auth";
+import { AuthGate } from "@/components/auth/AuthGate";
+import { SiteHeader } from "@/components/auth/SiteHeader";
 
 export const metadata: Metadata = {
   title: "Island Waves — Caribbean Radio Hub",
@@ -20,15 +22,20 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           PlayerBar sits alongside {children} for the same reason — both live
           outside the routed segment, so React never unmounts them on nav.
         */}
-        <PlayerProvider>
-          <header className="site-header">
-            <Link href="/" className="site-brand">
-              🎧 Island Waves
-            </Link>
-          </header>
-          {children}
-          <PlayerBar />
-        </PlayerProvider>
+        {/*
+          AuthProvider wraps everything so auth state drives routing app-wide.
+          PlayerProvider (single <audio> element) stays mounted across the gate
+          so the "keep listening while you browse" promise holds. AuthGate wraps
+          only the routed {children}: when a user is required but absent it
+          renders the sign-in screen instead, so no catalog markup mounts.
+        */}
+        <AuthProvider>
+          <PlayerProvider>
+            <SiteHeader />
+            <AuthGate>{children}</AuthGate>
+            <PlayerBar />
+          </PlayerProvider>
+        </AuthProvider>
       </body>
     </html>
   );
