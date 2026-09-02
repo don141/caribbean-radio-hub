@@ -50,6 +50,63 @@ npm run format        # Prettier: write
 npm run format:check  # Prettier: check only (CI-friendly)
 ```
 
+## Firebase backend (Firestore + Auth)
+
+The server-side data (stations catalog, per-user favorites / recently-played /
+preferences, featured shelf) lives in **Cloud Firestore**, secured by
+`firestore.rules`. Security posture is **deny-by-default + authenticated-only**:
+no rule permits an unauthenticated read of any collection, the catalog is
+read-only to signed-in clients, and every catalog write requires an `admin`
+custom claim. Audio is **never** relayed through Firebase — Firestore stores only
+metadata and stream URLs; audio flows Station → Internet → Listener.
+
+Committed config (no secrets): `firebase.json`, `.firebaserc`,
+`firestore.rules`, `firestore.indexes.json`.
+
+### Run the emulator suite
+
+Requires the Firebase CLI and a Java runtime (the Firestore/Auth emulators are
+JVM processes).
+
+```bash
+npm install -g firebase-tools     # or: npx firebase-tools ...
+firebase emulators:start          # Firestore :8080, Auth :9099, UI :4000
+```
+
+The emulators use the local `firestore.rules` — no prod project or credentials
+needed. Point a local app at them with the standard Firebase emulator env vars
+(`FIRESTORE_EMULATOR_HOST=localhost:8080`, `FIREBASE_AUTH_EMULATOR_HOST=localhost:9099`).
+
+### Run the security-rules tests
+
+The rules are covered by an emulator test suite (21 cases) that proves the
+acceptance criteria: unauthenticated reads are denied, signed-in users can read
+`/stations` and `/featured`, non-admins cannot write the catalog, admins can,
+and users can only touch their own `/users/{uid}` subtree.
+
+```bash
+cd firestore-tests
+npm install
+npm test            # firebase emulators:exec --only firestore "jest --runInBand"
+```
+
+### Prod project & Auth providers (one-time, human/console step)
+
+Emulator work is self-contained; the live project must be provisioned once in the
+Firebase console (no secret is committed here):
+
+1. Create the Firebase project and set its id as `default` in `.firebaserc`
+   (placeholder is `breadfruit-radio`).
+2. **Authentication → Sign-in method:** enable **Email/Password**; leave
+   **Anonymous** *disabled* (MVP is authenticated-only).
+3. Grant an admin: set the custom claim `{ admin: true }` on the admin user via
+   the Admin SDK (`admin.auth().setCustomUserClaims(uid, { admin: true })`).
+   The claim is server-set only — never trust a client-supplied admin flag.
+4. Deploy rules: `firebase deploy --only firestore:rules`.
+5. Client Firebase web config (public, not a secret) is injected via
+   `NEXT_PUBLIC_FIREBASE_*` env vars — never commit `google-services.json` /
+   `GoogleService-Info.plist` with private keys (they are gitignored).
+
 ## Project structure
 
 ```

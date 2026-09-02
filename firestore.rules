@@ -1,0 +1,68 @@
+rules_version = '2';
+
+// Breadfruit Caribbean Radio — Firestore security rules (BRE-38)
+//
+// Posture: DENY-BY-DEFAULT + AUTHENTICATED-ONLY (MVP = authenticated users only).
+//   - NO rule permits an unauthenticated (signed-out) read of any collection.
+//   - Catalog (stations, featured, countries, genres) is READ-ONLY to signed-in
+//     clients; every write requires the `admin` custom claim.
+//   - User-owned docs are readable/writable only by their owner (uid match).
+//   - The stations `isActive` gate is preserved: clients only ever see active
+//     stations; drafts/hidden records are admin-only. (Invariant: BRE-30.)
+//
+// Anything not matched below is denied. Every `allow` is explicit and minimal.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // A request is authenticated when a verified Firebase Auth token is present.
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Admin capability is a server-set custom claim — never client-trusted.
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.admin == true;
+    }
+
+    // ---- Catalog: stations/{stationId} ----
+    // Signed-in clients may read ONLY active stations; admins read everything.
+    // For list/query the client MUST constrain where(isActive == true), else
+    // the rule denies the whole query. All writes are admin-only, so a client
+    // can never set/flip isActive, permission.*, streamUrl, logoUrl, etc.
+    match /stations/{stationId} {
+      allow get:  if isAdmin() || (isSignedIn() && resource.data.isActive == true);
+      allow list: if isAdmin() || (isSignedIn() && resource.data.isActive == true);
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ---- Featured shelf: featured/{slot} ----
+    // Denormalized read model for the home screen. Signed-in read, admin write.
+    match /featured/{slot} {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ---- Reference vocabularies (read-only to clients) ----
+    match /countries/{code} {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+    match /genres/{genreId} {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ---- User-owned subtrees (owner-scoped) ----
+    // A user reads/writes only their own document and everything beneath it
+    // (favorites, recentlyPlayed, preferences / "My Island"). Never cross-user.
+    match /users/{uid} {
+      allow read, write: if isSignedIn() && request.auth.uid == uid;
+      match /{document=**} {
+        allow read, write: if isSignedIn() && request.auth.uid == uid;
+      }
+    }
+
+    // Deny-by-default: any path/operation without an explicit allow is denied,
+    // including all unauthenticated reads.
+  }
+}

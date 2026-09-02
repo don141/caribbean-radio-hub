@@ -42,3 +42,18 @@ next-env.d.ts
 
 # static-export build (scripts/build-static.sh)
 /.api-stash
+
+# portable JRE for running the Firestore emulator locally (not committed)
+/.toolchain
+
+# firebase emulator + functions build artifacts
+/functions/node_modules
+/firestore-tests/node_modules
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# native app configs — never commit files carrying private keys
+google-services.json
+GoogleService-Info.plist
