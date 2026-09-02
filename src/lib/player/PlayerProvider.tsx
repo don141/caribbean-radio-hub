@@ -85,6 +85,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   // once) always see current values without re-subscribing.
   const reconnectsRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Set when playback was interrupted by the device going offline, so that when
+  // connectivity returns we know to auto-reconnect (vs. a user-intended pause).
+  const interruptedByOfflineRef = useRef(false);
   // Mirror of `station` for the media event handlers, which are attached once
   // and read the latest selection without re-subscribing. Synced in an effect
   // (never during render) so the handlers see the current station.
@@ -238,6 +241,48 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     };
   }, [station, status, toggle]);
 
+  // Connectivity monitoring — the web-native equivalent of connectivity_plus:
+  // pause on network loss, auto-resume on return. Losing the network kills a
+  // live stream instantly; without this the media element just churns through
+  // its reconnect budget against a link that is definitively down and lands in
+  // a generic error. Instead we surface an accurate "you're offline" message
+  // immediately and, because live radio has no position to preserve, reconnect
+  // to the live edge automatically the moment connectivity returns.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const onOffline = () => {
+      const audio = audioRef.current;
+      const current = stationRef.current;
+      // Only intervene if we were actively playing this station — a deliberate
+      // user pause should stay paused when the network blips.
+      if (!current || !audio || audio.paused) return;
+      clearReconnectTimer();
+      reconnectsRef.current = 0;
+      interruptedByOfflineRef.current = true;
+      audio.pause();
+      setStatus("error");
+      setError(
+        "You appear to be offline. Playback will resume automatically when your connection returns.",
+      );
+    };
+
+    const onOnline = () => {
+      const current = stationRef.current;
+      if (!current || !interruptedByOfflineRef.current) return;
+      interruptedByOfflineRef.current = false;
+      reconnectsRef.current = 0;
+      connect(current);
+    };
+
+    window.addEventListener("offline", onOffline);
+    window.addEventListener("online", onOnline);
+    return () => {
+      window.removeEventListener("offline", onOffline);
+      window.removeEventListener("online", onOnline);
+    };
+  }, [clearReconnectTimer, connect]);
+
   // Attach media event handlers once. These translate raw element events into
   // our coarse status and own the reconnect/backoff loop.
   useEffect(() => {
@@ -246,6 +291,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     const onPlaying = () => {
       reconnectsRef.current = 0;
+      interruptedByOfflineRef.current = false;
       clearReconnectTimer();
       setError(null);
       setStatus("playing");
