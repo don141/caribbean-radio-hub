@@ -122,14 +122,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       clearReconnectTimer();
       reconnectsRef.current = 0;
 
-      const audio = audioRef.current;
-      // Resume rather than reconnect if it's the same, merely-paused station.
-      if (audio && stationRef.current?.id === target.id && audio.paused) {
-        void audio.play().catch(() => setStatus("error"));
-        return;
-      }
-
-      setStation(target);
+      // Live-edge semantics (AC-PLAY-2): a "resume" is a fresh reconnect, never
+      // a replay of the buffered position. Live radio has no meaningful past to
+      // resume into — playing the stale buffer would leave the listener drifting
+      // behind the live broadcast. So we always reconnect, even for the same,
+      // merely-paused station.
+      if (stationRef.current?.id !== target.id) setStation(target);
       connect(target);
     },
     [clearReconnectTimer, connect],
@@ -141,17 +139,16 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     if (!audio || !current) return;
 
     if (audio.paused) {
-      // If the last attempt errored, a resume won't help — reconnect instead.
-      if (status === "error") {
-        reconnectsRef.current = 0;
-        connect(current);
-      } else {
-        void audio.play().catch(() => setStatus("error"));
-      }
+      // Live-edge semantics (AC-PLAY-2): resume is always a reconnect to the
+      // live edge, never a replay of the buffered position — whether we're
+      // recovering from an error or from a user pause.
+      clearReconnectTimer();
+      reconnectsRef.current = 0;
+      connect(current);
     } else {
       audio.pause();
     }
-  }, [status, connect]);
+  }, [clearReconnectTimer, connect]);
 
   const retry = useCallback(() => {
     const current = stationRef.current;
@@ -177,6 +174,69 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     audio.volume = volume;
     audio.muted = muted;
   }, [volume, muted]);
+
+  // Media Session API — the web-native equivalent of a native media session
+  // (audio_service on mobile). It surfaces the now-playing station on OS
+  // lock-screen / notification-shade / hardware-media-key surfaces and routes
+  // those transport controls back into our player. This is how the web app
+  // fulfils the intent of the mobile lock-screen/background ACs (AC-PLAY-4/5/7):
+  // controllable, labelled playback that keeps working while the tab is
+  // backgrounded, and OS play/pause (including headset & car controls) that map
+  // to our live-edge reconnect semantics.
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator)) {
+      return;
+    }
+    const ms = navigator.mediaSession;
+
+    if (station) {
+      ms.metadata = new MediaMetadata({
+        title: station.name,
+        // Live radio has no per-track artist; show provenance instead so the
+        // lock screen still reads as a real station, not a blank card.
+        artist: [station.city, station.country].filter(Boolean).join(", "),
+        album: station.genres.join(" • "),
+        artwork: station.logoUrl
+          ? [{ src: station.logoUrl, sizes: "512x512" }]
+          : [],
+      });
+    } else {
+      ms.metadata = null;
+    }
+
+    // Mirror our coarse status onto the OS so the lock-screen glyph is correct.
+    ms.playbackState =
+      status === "playing"
+        ? "playing"
+        : status === "idle"
+          ? "none"
+          : "paused";
+
+    // OS/hardware "play" resumes the current station at the live edge; if none
+    // is selected yet there is nothing the OS can start, so leave it unset.
+    ms.setActionHandler("play", station ? () => toggle() : null);
+    ms.setActionHandler("pause", () => {
+      const audio = audioRef.current;
+      if (audio && !audio.paused) audio.pause();
+    });
+    // Stop is a hard teardown: pause and drop the live connection. Seeking makes
+    // no sense for live radio, so those handlers stay disabled.
+    ms.setActionHandler("stop", () => {
+      const audio = audioRef.current;
+      if (audio) audio.pause();
+    });
+    ms.setActionHandler("seekbackward", null);
+    ms.setActionHandler("seekforward", null);
+    ms.setActionHandler("seekto", null);
+
+    return () => {
+      // Handlers close over the current `toggle`; clear them so a stale closure
+      // can't fire after this effect is torn down and re-run.
+      ms.setActionHandler("play", null);
+      ms.setActionHandler("pause", null);
+      ms.setActionHandler("stop", null);
+    };
+  }, [station, status, toggle]);
 
   // Attach media event handlers once. These translate raw element events into
   // our coarse status and own the reconnect/backoff loop.
