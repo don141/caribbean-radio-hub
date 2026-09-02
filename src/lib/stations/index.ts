@@ -4,6 +4,15 @@ import type { Genre, Station } from "./types";
 export type { Station, Genre, StreamFormat } from "./types";
 export { STATIONS } from "./catalog";
 
+/**
+ * Catalog the app actually serves: everything except stations explicitly
+ * withheld via `available: false` (e.g. HTTP-only streams that browsers block
+ * as mixed content on the HTTPS site — see BRE-35). All public helpers below
+ * derive from this list so a withheld station disappears from browse, search,
+ * facets, and detail routes rather than surfacing as a silent broken play.
+ */
+const ACTIVE_STATIONS: Station[] = STATIONS.filter((s) => s.available !== false);
+
 /** Filters accepted by {@link queryStations}. All are optional and combine with AND. */
 export interface StationQuery {
   /** ISO alpha-2 country code, case-insensitive (e.g. "jm"). */
@@ -16,7 +25,7 @@ export interface StationQuery {
 
 /** Full catalog, sorted by country then station name for stable browse order. */
 export function getAllStations(): Station[] {
-  return [...STATIONS].sort(
+  return [...ACTIVE_STATIONS].sort(
     (a, b) =>
       a.country.localeCompare(b.country) || a.name.localeCompare(b.name),
   );
@@ -24,7 +33,7 @@ export function getAllStations(): Station[] {
 
 /** Look up a single station by its stable id, or undefined if absent. */
 export function getStationById(id: string): Station | undefined {
-  return STATIONS.find((s) => s.id === id);
+  return ACTIVE_STATIONS.find((s) => s.id === id);
 }
 
 /** Apply optional country/genre/search filters. Returns catalog order. */
@@ -49,7 +58,7 @@ export function queryStations(query: StationQuery = {}): Station[] {
 /** Distinct countries present in the catalog, sorted by name. */
 export function getCountries(): { code: string; name: string }[] {
   const map = new Map<string, string>();
-  for (const s of STATIONS) map.set(s.countryCode, s.country);
+  for (const s of ACTIVE_STATIONS) map.set(s.countryCode, s.country);
   return [...map.entries()]
     .map(([code, name]) => ({ code, name }))
     .sort((a, b) => a.name.localeCompare(b.name));
@@ -58,6 +67,6 @@ export function getCountries(): { code: string; name: string }[] {
 /** Distinct genres present in the catalog, sorted alphabetically. */
 export function getGenres(): Genre[] {
   const set = new Set<Genre>();
-  for (const s of STATIONS) for (const g of s.genres) set.add(g);
+  for (const s of ACTIVE_STATIONS) for (const g of s.genres) set.add(g);
   return [...set].sort();
 }

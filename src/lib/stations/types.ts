@@ -65,4 +65,14 @@ export interface Station {
   logoUrl?: string;
   /** Short human description for browse cards. */
   description: string;
+  /**
+   * When `false`, the station is withheld from the live catalog (discovery,
+   * search, facets, and detail pages) instead of being shown as a broken play.
+   * Absent/`true` means it is served normally. Used for stations with no HTTPS
+   * stream yet, which browsers block as mixed content on our HTTPS site (BRE-35).
+   * The record is kept so it can be re-enabled the moment an HTTPS stream is found.
+   */
+  available?: boolean;
+  /** Human-readable reason the station is withheld (paired with `available: false`). */
+  unavailableReason?: string;
 }
