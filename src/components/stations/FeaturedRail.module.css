@@ -1,0 +1,194 @@
+.rail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  width: 100%;
+}
+
+.heading {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--accent);
+}
+
+/* Horizontal scroller. Cards keep an intrinsic width and the row scrolls on
+   overflow; scroll-snap gives a tidy stop at each card on touch. */
+.track {
+  list-style: none;
+  display: flex;
+  gap: 0.85rem;
+  overflow-x: auto;
+  padding-bottom: 0.35rem;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+}
+
+.card {
+  position: relative;
+  flex: 0 0 auto;
+  width: 240px;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.85rem;
+  border-radius: 12px;
+  background: var(--background-accent);
+  border: 1px solid transparent;
+  scroll-snap-align: start;
+  transition: border-color 0.12s ease;
+}
+
+.card:hover {
+  border-color: rgba(255, 207, 63, 0.4);
+}
+
+.card[data-current] {
+  border-color: var(--accent);
+}
+
+.playBtn {
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  border-radius: 10px;
+  border: none;
+  padding: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.artwork {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--accent);
+  color: #06202b;
+}
+
+.artworkImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.artworkFallback {
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.playGlyph {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(6, 32, 43, 0.55);
+  color: #fff;
+  font-size: 1rem;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.playBtn:hover .playGlyph,
+.playBtn:focus-visible .playGlyph,
+.card[data-current] .playGlyph {
+  opacity: 1;
+}
+
+.info {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.name {
+  font-weight: 600;
+  color: var(--foreground);
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.name:hover {
+  text-decoration: underline;
+}
+
+.meta {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.genres {
+  font-size: 0.74rem;
+  color: var(--muted);
+  opacity: 0.75;
+  text-transform: capitalize;
+}
+
+/* Now-playing badge, pinned to the card's top-right corner (mirrors the grid). */
+.nowPlaying {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.nowPlaying[data-playing] {
+  color: var(--accent);
+}
+
+.eq {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 12px;
+}
+
+.eq span {
+  width: 3px;
+  background: var(--accent);
+  border-radius: 1px;
+  animation: eqBar 0.9s ease-in-out infinite;
+}
+
+.eq span:nth-child(1) {
+  height: 40%;
+  animation-delay: -0.2s;
+}
+.eq span:nth-child(2) {
+  height: 100%;
+  animation-delay: -0.5s;
+}
+.eq span:nth-child(3) {
+  height: 65%;
+  animation-delay: -0.35s;
+}
+
+@keyframes eqBar {
+  0%,
+  100% {
+    transform: scaleY(0.4);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .eq span {
+    animation: none;
+  }
+}

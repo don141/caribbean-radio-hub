@@ -3,6 +3,9 @@ import type { Genre, Station } from "./types";
 
 export type { Station, Genre, StreamFormat } from "./types";
 export { STATIONS } from "./catalog";
+// Featured-rail helpers live in ./featured and import from this barrel, so they
+// are imported directly (not re-exported here) to keep the dependency
+// one-directional and avoid a circular module reference.
 
 /**
  * Catalog the app actually serves: everything except stations explicitly
