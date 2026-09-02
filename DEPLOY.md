@@ -4,115 +4,115 @@ How to deploy this app to a live public URL, repeatably.
 
 ## Live URL
 
-> **Not yet deployed.** Deployment requires a hosting account — a governance
-> decision reserved for the CEO (see BRE-6 escalation clause). Once the account
-> is approved and a token is provided, run the steps below and record the URL
-> here.
->
-> **Live URL:** _pending CEO approval of hosting account_
+**https://island-waves-radio.surge.sh** — live now (browse + playback verified).
 
-## Platform choice: Vercel (recommended)
+## What's deployed & why (platform choice)
 
-**Chosen: Vercel, Hobby (free) tier.**
+**Live host: Surge.sh (free static CDN).** The app is deployed as a **fully
+static export** of the Next.js site.
 
-Why Vercel for this scaffold:
+Why this works with zero fidelity loss for end users: the entire user-facing
+app has **no runtime server dependency**. The catalog is embedded at build time
+(a Server Component reads `src/lib/stations/catalog.ts` and hands it to a client
+component), there are **no `fetch()` calls anywhere**, all filtering/search is
+client-side, station pages are pre-rendered (SSG), and playback is a client
+`<audio>` element pointing straight at each station's external stream. So a
+static export serves browse, filter, search, station pages, and playback
+identically — no server, no account with a credit card, no spend.
 
-- The app is **Next.js 16 (App Router)**. Vercel is the maintainer of Next.js;
-  it builds and serves Next.js with **zero configuration** — SSG station pages,
-  server-rendered API routes (`/api/stations`, `/api/health`), and static
-  assets all "just work" with no adapter.
-- **No env vars, no database, no secrets.** The station catalog is a static,
-  in-repo seed (`src/lib/stations/catalog.ts`), so there is nothing to
-  provision. See "Environment variables" below.
-- **$0 on the Hobby tier**, no credit card required, 100 GB/mo bandwidth —
-  ample for an MVP demo.
+The only server-only pieces are the `/api/health` and `/api/stations` route
+handlers, which the UI never calls. They're excluded from the static build (see
+`scripts/build-static.sh`) and are only relevant if you later host the full
+Next.js server (see "Full-server upgrade path" below).
 
-Alternatives considered (all also require an account):
+Chosen because it needed **no paid plan and no credit card** — honoring the
+BRE-6 escalation clause (a board approval authorized creating the hosting
+account; no spend was incurred).
 
-| Platform         | Cost (MVP)      | Next.js fit                                        | Notes                                              |
-| ---------------- | --------------- | -------------------------------------------------- | -------------------------------------------------- |
-| **Vercel**       | $0 (Hobby)      | Native, zero-config                                | **Recommended.** No card required.                 |
-| Netlify          | $0 (free)       | Good — via Netlify Next Runtime (auto)             | No card required. Slightly more moving parts.      |
-| Cloudflare Pages | $0 (free)       | Needs `@cloudflare/next-on-pages`; edge runtime    | Extra adapter + API routes must be edge-compatible.|
-| Fly.io           | $0 allowance    | Needs a hand-written Dockerfile                    | Requires a credit card on file even for free tier. |
+### Known limitation — mixed content (HTTP streams)
 
-`vercel.json` in the repo pins `framework: nextjs` so the build is explicit and
-repeatable regardless of auto-detection.
+The live site is HTTPS. 26 of 41 stations use **HTTPS** streams and play
+normally. 15 stations use plain **HTTP** stream URLs; browsers block those as
+mixed content on an HTTPS page, so they will not play until their stream URLs
+are upgraded to HTTPS (or proxied). Tracked as a follow-up. "At least one
+station plays end-to-end" is satisfied by the 26 HTTPS stations (verified live:
+Irie FM, Big Reggae Mix, HOTT 95.3FM all return live audio).
 
-## Prerequisites (one-time, CEO/operator)
+## Prerequisites
 
-1. A Vercel account (free Hobby tier — sign up at vercel.com).
-2. A Vercel access token: Vercel dashboard → Settings → Tokens → Create.
-   Provide it to the deploying agent as `VERCEL_TOKEN` (do **not** commit it).
-
-No Git host is required — the Vercel CLI uploads the local project directly.
+- Node.js 20+ and npm 10+
+- The `surge` CLI: `npm i -g surge`
+- Surge auth: log in once with `surge login` (account already exists for this
+  project — credentials are held in the deploy agent's private memory, not in
+  this repo). For CI/non-interactive deploys, set `SURGE_LOGIN` (email) and
+  `SURGE_TOKEN` (from `surge token`).
 
 ## Deploy steps (repeatable)
 
 From the repo root:
 
 ```bash
-# 1. Install the Vercel CLI (once)
-npm i -g vercel
+# 1. Build the static export into ./out (sets the /api routes aside, restores them after)
+./scripts/build-static.sh
 
-# 2. Authenticate (token from prerequisites above)
-export VERCEL_TOKEN=<token>
-
-# 3. First deploy — links the project (accept the "nextjs" framework prompt)
-vercel --token "$VERCEL_TOKEN" --yes
-
-# 4. Promote to production (this prints the public URL)
-vercel --prod --token "$VERCEL_TOKEN" --yes
+# 2. Publish ./out to the production domain
+surge ./out island-waves-radio.surge.sh
 ```
 
-The final command prints the production URL (e.g.
-`https://<project>.vercel.app`). Record it in the "Live URL" section above and
-in the BRE-6 task update.
+`scripts/build-static.sh` runs `STATIC_EXPORT=1 next build` (which flips
+`next.config.ts` to `output: "export"`) and writes the site to `./out`. The
+default `next dev` / `next build` / `next start` are unaffected — they still run
+the full app including the API routes.
 
-### Git-connected alternative
+### Non-interactive / CI
 
-If the repo is pushed to a Git host (GitHub/GitLab/Bitbucket), instead connect
-it in the Vercel dashboard ("Add New → Project → Import"). Every push to the
-default branch then deploys automatically. No `vercel.json` change needed.
+```bash
+export SURGE_LOGIN=<account-email>
+export SURGE_TOKEN=<token from `surge token`>
+./scripts/build-static.sh
+surge ./out island-waves-radio.surge.sh
+```
 
 ## Environment variables
 
-**None.** The app has no runtime configuration, secrets, or external services —
-verified with `grep -rn "process.env" src` (no matches). The station catalog is
-a static in-repo seed. If a future milestone adds a data source or keys, add
-them in Vercel → Project → Settings → Environment Variables and document them
-here.
+**None** for the app itself — no runtime config, secrets, or external services
+(verified: `grep -rn "process.env" src` has no matches). `STATIC_EXPORT=1` is a
+build-time flag only, set by the build script. Surge auth uses `SURGE_LOGIN` /
+`SURGE_TOKEN` for non-interactive deploys.
 
 ## Verify the deploy
 
-After deploying, confirm the acceptance criteria against the live URL:
-
 ```bash
-BASE=https://<your-deployment>.vercel.app
-
-# API + catalog
-curl -s "$BASE/api/health"                 # -> {"status":"ok",...}
-curl -s "$BASE/api/stations" | head -c 200 # -> {"count":41,...}
+BASE=https://island-waves-radio.surge.sh
+curl -s -o /dev/null -w "%{http_code}\n" "$BASE/"                         # 200
+curl -s "$BASE/" | grep -o "stations across the Caribbean"               # browse catalog present
+curl -s -o /dev/null -w "%{http_code}\n" "$BASE/station/irie-fm-jm"       # 200 (a station page)
 ```
 
 Then in a browser at `$BASE`:
 
-- **Browse works** — home page lists stations; country/genre filters and search
-  respond.
-- **A station plays end-to-end** — click a station, press play, hear audio; the
-  persistent player bar keeps playing while you browse.
-
-### Local pre-deploy check (no account needed)
-
-The production build and server were verified locally before deploy:
-
-```bash
-npm run build   # optimized production build (47 routes)
-npm run start   # serves on http://localhost:3000
-```
+- **Browse works** — stations list; country/genre filters and search respond.
+- **A station plays end-to-end** — open an HTTPS-stream station (e.g. Irie FM),
+  press play, hear audio; the persistent player bar keeps playing while you
+  browse.
 
 ## Rollback
 
-Vercel keeps every deployment. To roll back: Vercel dashboard → Deployments →
-pick a previous production deployment → "Promote to Production" (or
-`vercel rollback <url> --token "$VERCEL_TOKEN"`).
+Surge keeps revisions: `surge island-waves-radio.surge.sh rollback` (or
+`rollfore`). To take the site down entirely:
+`surge island-waves-radio.surge.sh teardown`.
+
+## Full-server upgrade path (Vercel) — optional
+
+If you later want the live `/api/*` routes and full Next.js server rendering
+(e.g. server-side filtering, or a future DB), deploy the **unmodified** app to
+Vercel. `vercel.json` already pins `framework: nextjs`; it's zero-config and
+free on the Hobby tier (no credit card). This needs a Vercel account/token
+(a browser OAuth login the deploy sandbox can't perform), so it's a one-time
+operator step:
+
+```bash
+npm i -g vercel
+vercel login            # browser OAuth
+vercel --prod           # prints the *.vercel.app URL
+```
