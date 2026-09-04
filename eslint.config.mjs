@@ -12,6 +12,12 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Node/CommonJS toolchains outside the Next.js app — each has its own
+    // runtime (and package.json). The Next.js/TS ruleset (e.g. no-require-imports)
+    // does not apply to these, so they are linted by their own tooling, not here.
+    "functions/**",
+    "firestore-tests/**",
+    "scripts/**",
   ]),
 ]);
 
