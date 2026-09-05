@@ -10,8 +10,9 @@ on:
     branches: [main, master]
 
 jobs:
+  # NOTE: keep this job id `build` and do NOT add a custom `name:` — the
+  # branch-protection required status check on `main` matches the context "build".
   build:
-    name: Web (Next.js + Firebase)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
