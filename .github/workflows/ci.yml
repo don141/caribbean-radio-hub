@@ -1,8 +1,8 @@
 name: CI
 
-# CI skeleton so every PR is linted and builds before merge (BRE-37 intent,
-# web-stack equivalent of `flutter analyze` + `flutter test`). Enable a
-# branch-protection rule requiring this "build" check once a GitHub remote exists.
+# Monorepo CI: the `build` job validates the Next.js web app + Firebase toolchain
+# (existing, branch-protection-required check). The `mobile` job validates the
+# Flutter app at apps/mobile with `flutter analyze` + `flutter test` (BRE-49).
 on:
   pull_request:
     branches: [main, master]
@@ -10,6 +10,8 @@ on:
     branches: [main, master]
 
 jobs:
+  # NOTE: keep this job id `build` and do NOT add a custom `name:` — the
+  # branch-protection required status check on `main` matches the context "build".
   build:
     runs-on: ubuntu-latest
     steps:
@@ -29,3 +31,28 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  mobile:
+    name: Mobile (Flutter)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.2'
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test
