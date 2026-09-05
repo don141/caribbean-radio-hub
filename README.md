@@ -9,6 +9,29 @@ This repo is the MVP skeleton. It's a clean, runnable, buildable foundation —
 product features (station catalog, browse/discovery, and audio playback) are
 built on top of this in later milestones.
 
+## Repository layout
+
+Breeze is a **Flutter mobile app (iOS + Android) with Firebase as the backend**.
+A Next.js web app was built first and is live; both now share this repo:
+
+```
+caribbean-radio-hub/
+├── apps/
+│   └── mobile/         # Flutter iOS + Android app (Breeze) — see apps/mobile/README.md
+├── src/                # Next.js web app (live MVP; runs from the repo root)
+├── functions/          # Firebase Functions
+├── firestore-tests/    # Firestore security-rules emulator suite
+├── firebase.json, firestore.rules, firestore.indexes.json
+└── README.md
+```
+
+The web app currently runs from the repo root (its live Surge/Vercel deploy and
+CI reference these root paths). Moving it under `apps/web/` for full symmetry is
+tracked as a low-risk follow-up so the live deployment is not disturbed here.
+
+**Mobile developers:** see [`apps/mobile/README.md`](apps/mobile/README.md) for
+Flutter setup, run instructions, and the FlutterFire configuration steps.
+
 ## Tech stack
 
 - **[Next.js](https://nextjs.org/) 16 (App Router)** — React framework with a
